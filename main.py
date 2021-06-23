@@ -2,21 +2,33 @@ import argparse
 import serial
 from functools import partial
 
+OTA_FRAME_ACK_BYTE          = 0x01
+OTA_FRAME_ERR_BYTE          = 0x02
+OTA_FRAME_START_BYTE        = 0x03
+OTA_FRAME_END_BYTE          = 0x04
+OTA_FRAME_BEGIN_OTA_BYTE    = 0x05
+OTA_FRAME_FINISHED_OTA_BYTE = 0x06
+
 binary_file = ""
-chunk_size = 0
-baud = 0
-port = ""
+chunk_size  = 0
+baud        = 0
+port        = ""
+serialPort  = {}
 
 def setup_serial():
-  ser = serial.Serial(port)
-  ser.write(b'hello')
-  ser.close()
-  pass
+  global serialPort
 
-def send_serial(data):
-  pass
+  serialPort = serial.Serial(port = port, baudrate = baud)
+  serialPort.write(b'hello')
+  serialPort.close()
 
 def main():
+  global binary_file
+  global chunk_size 
+  global baud
+  global port
+  global serialPort
+
   # construct the argument parser and parse the arguments
   ap = argparse.ArgumentParser()
 
@@ -28,10 +40,10 @@ def main():
   args, unknown = ap.parse_known_args()
   args = vars(args)
 
-  global binary_file = args['file']
-  global chunk_size = args['chunk']
-  global baud = args['baud']
-  global port = args['port']
+  binary_file = args['file']
+  chunk_size = args['chunk']
+  baud = args['baud']
+  port = args['port']
 
   print("file name: {}".format(binary_file))
   print("chunk size: {}".format(chunk_size))
@@ -40,11 +52,14 @@ def main():
 
   with open(binary_file, 'rb') as file:
     for chunk in iter(partial(file.read, chunk_size), b''):
-      send_serial(chunk)
-      if receive_ack():
+      # Send chunk
+      serialPort.write(chunk)
+      # Wait for 1 byte
+      c = serialPort.read(1)
+      if c == OTA_FRAME_ACK_BYTE:
         pass
-      elif receive_err():
-        resend_serial()
+      elif c == OTA_FRAME_ERR_BYTE:
+        pass
       else:
         pass
 
